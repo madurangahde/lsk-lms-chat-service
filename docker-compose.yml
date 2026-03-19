@@ -1,0 +1,20 @@
+services:
+  chat-service:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8085:8085"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
