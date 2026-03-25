@@ -13,12 +13,14 @@ React frontend for the LMS chat backend you asked for.
 ## Features
 
 ### User view
+
 - User sees only their own conversation with admins
 - User can view previous messages
 - User can send new messages and replies
 - User receives admin replies in real time
 
 ### Admin view
+
 - Admin sees all user conversations separately
 - Admin can search conversations
 - Admin can filter unread conversations
@@ -50,6 +52,7 @@ This frontend does **not** implement its own login.
 It reuses the **existing LMS bearer token**.
 
 ### Normal LMS integration flow
+
 Your LMS already authenticates the user and stores the token somewhere.
 This frontend tries to read:
 
@@ -64,8 +67,9 @@ The keys are configurable by:
 If those keys do not exist, update them in `.env`.
 
 ### Standalone testing flow
-If you run this frontend alone, the login page lets you paste a valid LMS bearer token manually.
-The role hint is only for routing the UI to the correct screen.
+
+If you run this frontend alone, use the login page to call your LMS login API and receive an access token.
+UI routing is derived from the decoded token claims.
 The backend still enforces the real permissions.
 
 ## 4. Adapting to your LMS app
@@ -73,8 +77,8 @@ The backend still enforces the real permissions.
 Most LMS apps store something like this:
 
 ```js
-localStorage.setItem('lms_access_token', token);
-localStorage.setItem('lms_user', JSON.stringify(user));
+localStorage.setItem("lms_access_token", token);
+localStorage.setItem("lms_user", JSON.stringify(user));
 ```
 
 If your LMS uses different keys, update `.env`.
@@ -88,12 +92,14 @@ That file contains the frontend-side user normalization logic used only for UI r
 ## 5. Backend endpoints used
 
 ### User
+
 - `GET /me/conversation`
 - `GET /me/messages`
 - `POST /me/read`
 - Socket event: `message:user:send`
 
 ### Admin
+
 - `GET /admin/conversations`
 - `GET /admin/conversations/:conversationId/messages`
 - `POST /admin/conversations/:conversationId/read`
@@ -103,12 +109,15 @@ That file contains the frontend-side user normalization logic used only for UI r
 ## 6. Socket events listened to
 
 ### Common
+
 - `message:new`
 
 ### User
+
 - `conversation:self:updated`
 
 ### Admin
+
 - `conversation:updated`
 
 ## 7. Production integration suggestion
@@ -128,4 +137,3 @@ Then replace the storage bootstrap in `AuthContext` with your existing auth prov
 - `src/auth/AuthContext.jsx` — auth bootstrap using LMS token
 - `src/socket/socket.js` — Socket.IO connection
 - `src/api/http.js` — Axios client with bearer token
-

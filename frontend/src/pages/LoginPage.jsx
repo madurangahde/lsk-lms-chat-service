@@ -42,7 +42,6 @@ export default function LoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("USER");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -88,27 +87,16 @@ export default function LoginPage() {
 
       const storedUser = extractUser(responseData);
 
-      login({
+      const session = login({
         token,
         storedUser,
-        roleHint: role,
       });
 
       const redirectTo = location.state?.from?.pathname;
       if (redirectTo) {
         navigate(redirectTo, { replace: true });
       } else {
-        const isAdmin =
-          String(
-            storedUser?.role ||
-              storedUser?.userRole ||
-              storedUser?.roles?.[0] ||
-              "",
-          )
-            .toUpperCase()
-            .includes("ADMIN") || role === "ADMIN";
-
-        navigate(isAdmin ? "/admin" : "/chat", { replace: true });
+        navigate(session.user.isAdmin ? "/admin" : "/chat", { replace: true });
       }
     } catch (err) {
       setError(extractErrorMessage(err));
@@ -147,17 +135,6 @@ export default function LoginPage() {
               placeholder="Enter your password"
               autoComplete="current-password"
             />
-          </label>
-
-          <label>
-            <span>Role</span>
-            <select
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-            >
-              <option value="USER">USER</option>
-              <option value="ADMIN">ADMIN</option>
-            </select>
           </label>
 
           {error && <div className="error-banner">{error}</div>}

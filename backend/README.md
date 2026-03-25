@@ -21,8 +21,8 @@ Instead:
 2. Frontend sends that same token to this chat service:
    - HTTP: `Authorization: Bearer <token>`
    - Socket.IO: `auth: { token }`
-3. The chat service calls your LMS **current user API** (`LMS_AUTH_ME_URL`) to validate the token and fetch the user profile.
-4. The service normalizes that LMS response into:
+3. The chat service decodes claims from the access token payload and builds the user profile from those claims.
+4. The service normalizes token claims into:
    ```json
    {
      "id": "...",
@@ -40,12 +40,14 @@ Instead:
 
 You must point these env variables to your real LMS APIs:
 
-- `LMS_AUTH_ME_URL` -> API that returns the current logged-in user for a bearer token
 - `LMS_USERS_LIST_URL` -> admin API that returns **all users** for broadcast fan-out
 
-If your LMS response shape is different, only update:
+If your token claims shape is different, update:
 
 - `normalizeLmsUser()` in `src/services/lmsAuth.service.js`
+
+If your LMS users list response shape is different, update:
+
 - `normalizeUsersArray()` in `src/services/lmsAuth.service.js`
 
 ## 2) Project structure
@@ -120,16 +122,19 @@ All endpoints require `Authorization: Bearer <lms_access_token>`.
 ### User APIs
 
 #### Get / create own conversation metadata
+
 ```http
 GET /api/chat/me/conversation
 ```
 
 #### Get own messages
+
 ```http
 GET /api/chat/me/messages?limit=20&before=2026-03-19T10:00:00.000Z
 ```
 
 #### Send message as user
+
 ```http
 POST /api/chat/me/messages
 Content-Type: application/json
@@ -140,6 +145,7 @@ Content-Type: application/json
 ```
 
 #### Mark admin messages as read
+
 ```http
 POST /api/chat/me/read
 ```
@@ -147,16 +153,19 @@ POST /api/chat/me/read
 ### Admin APIs
 
 #### List all conversations
+
 ```http
 GET /api/chat/admin/conversations?page=1&limit=20&search=sanjula&onlyUnread=true
 ```
 
 #### Get one conversation's messages
+
 ```http
 GET /api/chat/admin/conversations/:conversationId/messages?limit=20
 ```
 
 #### Reply to one conversation
+
 ```http
 POST /api/chat/admin/conversations/:conversationId/messages
 Content-Type: application/json
@@ -167,11 +176,13 @@ Content-Type: application/json
 ```
 
 #### Mark one conversation as read for admin
+
 ```http
 POST /api/chat/admin/conversations/:conversationId/read
 ```
 
 #### Broadcast to all users
+
 ```http
 POST /api/chat/admin/broadcast
 Content-Type: application/json
@@ -186,13 +197,13 @@ Content-Type: application/json
 Connect with the LMS bearer token:
 
 ```js
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
-const socket = io('http://localhost:8085', {
-  path: '/socket.io',
+const socket = io("http://localhost:8085", {
+  path: "/socket.io",
   auth: {
-    token: lmsAccessToken
-  }
+    token: lmsAccessToken,
+  },
 });
 ```
 
@@ -205,31 +216,40 @@ const socket = io('http://localhost:8085', {
 ### Client -> server events
 
 #### User send
+
 ```js
-socket.emit('message:user:send', { text: 'Hello admin' }, console.log);
+socket.emit("message:user:send", { text: "Hello admin" }, console.log);
 ```
 
 #### Admin reply
+
 ```js
-socket.emit('message:admin:send', {
-  conversationId,
-  text: 'Hello user'
-}, console.log);
+socket.emit(
+  "message:admin:send",
+  {
+    conversationId,
+    text: "Hello user",
+  },
+  console.log,
+);
 ```
 
 #### Subscribe admin to a conversation room
+
 ```js
-socket.emit('conversation:subscribe', { conversationId }, console.log);
+socket.emit("conversation:subscribe", { conversationId }, console.log);
 ```
 
 #### Mark read
+
 ```js
-socket.emit('conversation:read', { conversationId }, console.log);
+socket.emit("conversation:read", { conversationId }, console.log);
 ```
 
 #### Broadcast
+
 ```js
-socket.emit('message:broadcast', { text: 'Attention all users' }, console.log);
+socket.emit("message:broadcast", { text: "Attention all users" }, console.log);
 ```
 
 ## 8) Important behavior rules implemented
@@ -252,12 +272,14 @@ socket.emit('message:broadcast', { text: 'Attention all users' }, console.log);
 
 Most likely you only need to adapt 2 places:
 
-### A) current user response mapping
+### A) token claims mapping
+
 File: `src/services/lmsAuth.service.js`
 
-Edit `normalizeLmsUser()` to match your LMS `/me` response.
+Edit `normalizeLmsUser()` to match your LMS access token claims.
 
 ### B) all users list response mapping
+
 File: `src/services/lmsAuth.service.js`
 
 Edit `normalizeUsersArray()` to match your LMS admin users list response.
