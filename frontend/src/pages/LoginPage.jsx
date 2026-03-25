@@ -1,41 +1,119 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext.jsx';
-import { env } from '../config/env.js';
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useAuth } from "../auth/AuthContext.jsx";
+import { env } from "../config/env.js";
+
+function extractToken(responseData) {
+  return (
+    responseData?.accessToken ||
+    responseData?.token ||
+    responseData?.jwt ||
+    responseData?.data?.accessToken ||
+    responseData?.data?.token ||
+    responseData?.result?.accessToken ||
+    responseData?.result?.token ||
+    ""
+  );
+}
+
+function extractUser(responseData) {
+  return (
+    responseData?.user ||
+    responseData?.data?.user ||
+    responseData?.result?.user ||
+    null
+  );
+}
+
+function extractErrorMessage(error) {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    "Login failed. Please check your credentials."
+  );
+}
 
 export default function LoginPage() {
   const { isAuthenticated, user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [token, setToken] = useState('');
-  const [role, setRole] = useState('USER');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("USER");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(user?.isAdmin ? '/admin' : '/chat', { replace: true });
+      navigate(user?.isAdmin ? "/admin" : "/chat", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!token.trim()) {
-      setError('Paste your LMS bearer token to continue.');
+    setError("");
+
+    if (!identifier.trim() || !password.trim()) {
+      setError("Please enter your username/email and password.");
       return;
     }
 
-    login({
-      token: token.trim(),
-      roleHint: role,
-      nameHint: name,
-      emailHint: email
-    });
+    try {
+      setLoading(true);
 
-    const redirectTo = location.state?.from?.pathname;
-    if (redirectTo) {
-      navigate(redirectTo, { replace: true });
+      const payload = {
+        [env.lmsLoginIdentifierField]: identifier.trim(),
+        [env.lmsLoginPasswordField]: password,
+      };
+
+      const response = await axios.post(env.lmsLoginUrl, payload, {
+        timeout: 10000,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const responseData = response.data;
+      const token = extractToken(responseData);
+
+      if (!token) {
+        setError(
+          "Login succeeded, but no access token was returned by LMS API.",
+        );
+        return;
+      }
+
+      const storedUser = extractUser(responseData);
+
+      login({
+        token,
+        storedUser,
+        roleHint: role,
+      });
+
+      const redirectTo = location.state?.from?.pathname;
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+      } else {
+        const isAdmin =
+          String(
+            storedUser?.role ||
+              storedUser?.userRole ||
+              storedUser?.roles?.[0] ||
+              "",
+          )
+            .toUpperCase()
+            .includes("ADMIN") || role === "ADMIN";
+
+        navigate(isAdmin ? "/admin" : "/chat", { replace: true });
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,52 +121,59 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="eyebrow">{env.appTitle}</div>
-        <h1>Connect to chat</h1>
+        <h1>Enter chat</h1>
         <p className="muted">
-          In your LMS integration, this screen is usually skipped because the app auto-reads the saved token
-          from localStorage or sessionStorage. For standalone testing, paste a valid LMS token here.
+          Sign in using your LMS account to access the chat service.
         </p>
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
-            <span>Bearer token</span>
-            <textarea
-              rows={6}
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="Paste LMS access token"
+            <span>{env.lmsLoginIdentifierLabel}</span>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              placeholder={`Enter your ${env.lmsLoginIdentifierLabel.toLowerCase()}`}
+              autoComplete="username"
             />
           </label>
 
-          <div className="login-grid">
-            <label>
-              <span>Role hint</span>
-              <select value={role} onChange={(event) => setRole(event.target.value)}>
-                <option value="USER">USER</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-            </label>
-            <label>
-              <span>Name hint</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Optional" />
-            </label>
-          </div>
+          <label>
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+            />
+          </label>
 
           <label>
-            <span>Email hint</span>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Optional" />
+            <span>Role</span>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            >
+              <option value="USER">USER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
           </label>
 
           {error && <div className="error-banner">{error}</div>}
 
-          <button className="btn btn-primary btn-block" type="submit">
-            Enter chat
+          <button
+            className="btn btn-primary btn-block"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Enter chat"}
           </button>
         </form>
 
         <div className="login-help muted small">
-          Configure <code>VITE_AUTH_TOKEN_STORAGE_KEY</code> and <code>VITE_AUTH_USER_STORAGE_KEY</code> if your
-          LMS stores auth data under different keys.
+          This page uses your LMS login API and stores the returned access token
+          for chat access.
         </div>
       </div>
     </div>
