@@ -1,10 +1,10 @@
-import mongoose from 'mongoose';
-import { Conversation } from '../models/Conversation.js';
-import { Message } from '../models/Message.js';
-import { env } from '../config/env.js';
-import { HttpError } from '../utils/httpError.js';
-import { fetchAllLmsUsers } from './lmsAuth.service.js';
-import { getSocketServer } from '../config/socketStore.js';
+import mongoose from "mongoose";
+import { Conversation } from "../models/Conversation.js";
+import { Message } from "../models/Message.js";
+import { env } from "../config/env.js";
+import { HttpError } from "../utils/httpError.js";
+import { fetchAllLmsUsers } from "./lmsAuth.service.js";
+import { getSocketServer } from "../config/socketStore.js";
 
 function toMessageDto(doc) {
   return {
@@ -19,7 +19,7 @@ function toMessageDto(doc) {
     readByUser: !!doc.readByUser,
     readByAdmin: !!doc.readByAdmin,
     createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt
+    updatedAt: doc.updatedAt,
   };
 }
 
@@ -35,17 +35,25 @@ function toConversationDto(doc) {
     unreadForAdmin: doc.unreadForAdmin,
     unreadForUser: doc.unreadForUser,
     createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt
+    updatedAt: doc.updatedAt,
   };
 }
 
 function sanitizeText(text) {
-  const value = String(text || '').trim();
+  const value = String(text || "").trim();
   if (!value) {
-    throw new HttpError(400, 'Message text is required', 'MESSAGE_TEXT_REQUIRED');
+    throw new HttpError(
+      400,
+      "Message text is required",
+      "MESSAGE_TEXT_REQUIRED",
+    );
   }
   if (value.length > env.maxMessageLength) {
-    throw new HttpError(400, `Message exceeds ${env.maxMessageLength} characters`, 'MESSAGE_TOO_LONG');
+    throw new HttpError(
+      400,
+      `Message exceeds ${env.maxMessageLength} characters`,
+      "MESSAGE_TOO_LONG",
+    );
   }
   return value;
 }
@@ -53,21 +61,21 @@ function sanitizeText(text) {
 function emitConversationToAdmins(conversation) {
   const io = getSocketServer();
   if (io) {
-    io.to('admins').emit('conversation:updated', conversation);
+    io.to("admins").emit("conversation:updated", conversation);
   }
 }
 
 function emitMessageToConversation(conversationId, message) {
   const io = getSocketServer();
   if (io) {
-    io.to(`conv:${conversationId}`).emit('message:new', message);
+    io.to(`conv:${conversationId}`).emit("message:new", message);
   }
 }
 
 function emitUserConversationSummary(userId, conversation) {
   const io = getSocketServer();
   if (io) {
-    io.to(`user:${userId}`).emit('conversation:self:updated', conversation);
+    io.to(`user:${userId}`).emit("conversation:self:updated", conversation);
   }
 }
 
@@ -77,15 +85,13 @@ export async function ensureConversationForUser(user) {
     {
       $setOnInsert: {
         userId: user.id,
-        userEmail: user.email,
-        userName: user.name
       },
       $set: {
         userEmail: user.email,
-        userName: user.name
-      }
+        userName: user.name,
+      },
     },
-    { upsert: true, new: true }
+    { upsert: true, new: true },
   );
 
   return conversation;
@@ -98,11 +104,15 @@ export async function getMyConversation(authUser) {
 
 export async function getConversationOrThrow(conversationId) {
   if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-    throw new HttpError(400, 'Invalid conversation id', 'BAD_CONVERSATION_ID');
+    throw new HttpError(400, "Invalid conversation id", "BAD_CONVERSATION_ID");
   }
   const conversation = await Conversation.findById(conversationId);
   if (!conversation) {
-    throw new HttpError(404, 'Conversation not found', 'CONVERSATION_NOT_FOUND');
+    throw new HttpError(
+      404,
+      "Conversation not found",
+      "CONVERSATION_NOT_FOUND",
+    );
   }
   return conversation;
 }
@@ -110,7 +120,11 @@ export async function getConversationOrThrow(conversationId) {
 export async function assertConversationAccess(authUser, conversationId) {
   const conversation = await getConversationOrThrow(conversationId);
   if (!authUser.isAdmin && conversation.userId !== authUser.id) {
-    throw new HttpError(403, 'You cannot access this conversation', 'FORBIDDEN_CONVERSATION');
+    throw new HttpError(
+      403,
+      "You cannot access this conversation",
+      "FORBIDDEN_CONVERSATION",
+    );
   }
   return conversation;
 }
@@ -120,19 +134,27 @@ export async function getMyMessages(authUser, { before, limit }) {
   return getConversationMessages(conversation._id, { before, limit });
 }
 
-export async function getConversationMessages(conversationId, { before, limit }) {
+export async function getConversationMessages(
+  conversationId,
+  { before, limit },
+) {
   const query = { conversationId };
   if (before) {
     query.createdAt = { $lt: new Date(before) };
   }
 
-  const rows = await Message.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+  const rows = await Message.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
   const ordered = rows.reverse().map(toMessageDto);
-  const nextBefore = rows.length ? rows[rows.length - 1].createdAt.toISOString() : null;
+  const nextBefore = rows.length
+    ? rows[rows.length - 1].createdAt.toISOString()
+    : null;
 
   return {
     items: ordered,
-    nextBefore: rows.length === limit ? nextBefore : null
+    nextBefore: rows.length === limit ? nextBefore : null,
   };
 }
 
@@ -142,17 +164,17 @@ export async function sendUserMessage(authUser, payload) {
 
   const message = await Message.create({
     conversationId: conversation._id,
-    senderType: 'USER',
+    senderType: "USER",
     senderId: authUser.id,
     senderName: authUser.name,
     text,
     readByUser: true,
     readByAdmin: false,
-    isBroadcast: false
+    isBroadcast: false,
   });
 
   conversation.lastMessageText = text;
-  conversation.lastMessageSenderType = 'USER';
+  conversation.lastMessageSenderType = "USER";
   conversation.lastMessageAt = message.createdAt;
   conversation.unreadForAdmin += 1;
   await conversation.save();
@@ -173,17 +195,17 @@ export async function sendAdminReply(authUser, conversationId, payload) {
 
   const message = await Message.create({
     conversationId: conversation._id,
-    senderType: 'ADMIN',
+    senderType: "ADMIN",
     senderId: authUser.id,
     senderName: authUser.name,
     text,
     readByUser: false,
     readByAdmin: true,
-    isBroadcast: false
+    isBroadcast: false,
   });
 
   conversation.lastMessageText = text;
-  conversation.lastMessageSenderType = 'ADMIN';
+  conversation.lastMessageSenderType = "ADMIN";
   conversation.lastMessageAt = message.createdAt;
   conversation.unreadForUser += 1;
   conversation.unreadForAdmin = 0;
@@ -202,8 +224,12 @@ export async function sendAdminReply(authUser, conversationId, payload) {
 export async function markMyConversationRead(authUser) {
   const conversation = await ensureConversationForUser(authUser);
   await Message.updateMany(
-    { conversationId: conversation._id, senderType: 'ADMIN', readByUser: false },
-    { $set: { readByUser: true } }
+    {
+      conversationId: conversation._id,
+      senderType: "ADMIN",
+      readByUser: false,
+    },
+    { $set: { readByUser: true } },
   );
   conversation.unreadForUser = 0;
   await conversation.save();
@@ -217,8 +243,12 @@ export async function markMyConversationRead(authUser) {
 export async function markAdminConversationRead(conversationId) {
   const conversation = await getConversationOrThrow(conversationId);
   await Message.updateMany(
-    { conversationId: conversation._id, senderType: 'USER', readByAdmin: false },
-    { $set: { readByAdmin: true } }
+    {
+      conversationId: conversation._id,
+      senderType: "USER",
+      readByAdmin: false,
+    },
+    { $set: { readByAdmin: true } },
   );
   conversation.unreadForAdmin = 0;
   await conversation.save();
@@ -228,13 +258,18 @@ export async function markAdminConversationRead(conversationId) {
   return dto;
 }
 
-export async function listAdminConversations({ page, limit, search, onlyUnread }) {
+export async function listAdminConversations({
+  page,
+  limit,
+  search,
+  onlyUnread,
+}) {
   const query = {};
   if (search) {
     query.$or = [
-      { userName: { $regex: search, $options: 'i' } },
-      { userEmail: { $regex: search, $options: 'i' } },
-      { userId: { $regex: search, $options: 'i' } }
+      { userName: { $regex: search, $options: "i" } },
+      { userEmail: { $regex: search, $options: "i" } },
+      { userId: { $regex: search, $options: "i" } },
     ];
   }
   if (onlyUnread) {
@@ -243,8 +278,12 @@ export async function listAdminConversations({ page, limit, search, onlyUnread }
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    Conversation.find(query).sort({ lastMessageAt: -1, updatedAt: -1 }).skip(skip).limit(limit).lean(),
-    Conversation.countDocuments(query)
+    Conversation.find(query)
+      .sort({ lastMessageAt: -1, updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Conversation.countDocuments(query),
   ]);
 
   return {
@@ -252,7 +291,7 @@ export async function listAdminConversations({ page, limit, search, onlyUnread }
     page,
     limit,
     total,
-    totalPages: Math.ceil(total / limit) || 1
+    totalPages: Math.ceil(total / limit) || 1,
   };
 }
 
@@ -278,35 +317,35 @@ export async function broadcastAdminMessage(authUser, token, payload) {
           update: {
             $setOnInsert: {
               userId: user.id,
-              userEmail: user.email,
-              userName: user.name
             },
             $set: {
               userEmail: user.email,
               userName: user.name,
               lastMessageText: text,
-              lastMessageSenderType: 'ADMIN',
-              lastMessageAt: now
+              lastMessageSenderType: "ADMIN",
+              lastMessageAt: now,
             },
-            $inc: { unreadForUser: 1 }
+            $inc: { unreadForUser: 1 },
           },
-          upsert: true
-        }
-      }))
+          upsert: true,
+        },
+      })),
     );
 
     const conversations = await Conversation.find({
-      userId: { $in: batch.map((user) => user.id) }
+      userId: { $in: batch.map((user) => user.id) },
     });
 
-    const byUserId = new Map(conversations.map((conversation) => [conversation.userId, conversation]));
+    const byUserId = new Map(
+      conversations.map((conversation) => [conversation.userId, conversation]),
+    );
     const messages = batch
       .map((user) => {
         const conversation = byUserId.get(user.id);
         if (!conversation) return null;
         return {
           conversationId: conversation._id,
-          senderType: 'ADMIN',
+          senderType: "ADMIN",
           senderId: authUser.id,
           senderName: authUser.name,
           text,
@@ -315,7 +354,7 @@ export async function broadcastAdminMessage(authUser, token, payload) {
           readByAdmin: true,
           readByUser: false,
           createdAt: now,
-          updatedAt: now
+          updatedAt: now,
         };
       })
       .filter(Boolean);
@@ -331,14 +370,16 @@ export async function broadcastAdminMessage(authUser, token, payload) {
         const conversation = byUserId.get(user.id);
         if (!conversation) continue;
         const conversationDto = toConversationDto(conversation);
-        const messageDoc = messages.find((m) => String(m.conversationId) === String(conversation._id));
+        const messageDoc = messages.find(
+          (m) => String(m.conversationId) === String(conversation._id),
+        );
         emitConversationToAdmins(conversationDto);
         emitUserConversationSummary(user.id, conversationDto);
         if (messageDoc) {
           emitMessageToConversation(conversation._id, {
             id: `${broadcastId}:${conversation._id}`,
             conversationId: String(conversation._id),
-            senderType: 'ADMIN',
+            senderType: "ADMIN",
             senderId: authUser.id,
             senderName: authUser.name,
             text,
@@ -347,7 +388,7 @@ export async function broadcastAdminMessage(authUser, token, payload) {
             readByUser: false,
             readByAdmin: true,
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
           });
         }
       }
