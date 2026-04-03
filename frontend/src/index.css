@@ -354,8 +354,47 @@ select:focus {
   border-radius: var(--radius-md);
   padding: 16px;
   box-shadow: var(--shadow-sm);
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto 1fr auto;
   animation: riseIn 0.28s ease;
+}
+
+.student-match-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.student-match-box__title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-strong);
+}
+
+.student-match-list {
+  display: grid;
+  gap: 8px;
+}
+
+.student-match-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface-strong);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.student-match-item__name {
+  font-weight: 700;
 }
 
 .search-form {

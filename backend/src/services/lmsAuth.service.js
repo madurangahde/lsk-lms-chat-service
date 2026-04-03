@@ -15,6 +15,21 @@ function extractContainer(payload) {
   return payload?.data?.user || payload?.user || payload?.data || payload;
 }
 
+function toQueryString(params) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value === undefined || value === null || value === "") continue;
+    query.set(key, String(value));
+  }
+  return query.toString();
+}
+
+function withQueryParams(url, params) {
+  const query = toQueryString(params);
+  if (!query) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}${query}`;
+}
+
 function decodeBase64Url(input) {
   const normalized = String(input || "")
     .replace(/-/g, "+")
@@ -57,6 +72,7 @@ export function normalizeLmsUser(payload) {
     raw?.uuid,
     raw?.sub,
     raw?.uid,
+    raw?.username,
     raw?.user?.id,
     raw?.email,
   );
@@ -69,9 +85,12 @@ export function normalizeLmsUser(payload) {
     ) || null;
   const name =
     firstDefined(
+      [raw?.name, raw?.surname].filter(Boolean).join(" "),
       raw?.name,
+      raw?.firstName,
       raw?.fullName,
       raw?.displayName,
+      raw?.username,
       raw?.userName,
       raw?.user_name,
       raw?.preferred_username,
@@ -190,6 +209,39 @@ function normalizeUsersArray(payload) {
     .filter((user) => user && !user.isAdmin);
 }
 
+function normalizeUsersPage(payload) {
+  const items = normalizeUsersArray(payload);
+
+  const pageIndex = Number(
+    firstDefined(payload?.data?.number, payload?.number, 0),
+  );
+  const pageSize = Number(
+    firstDefined(payload?.data?.size, payload?.size, items.length || 0),
+  );
+  const total = Number(
+    firstDefined(
+      payload?.data?.totalElements,
+      payload?.totalElements,
+      items.length,
+    ),
+  );
+  const totalPages = Number(
+    firstDefined(
+      payload?.data?.totalPages,
+      payload?.totalPages,
+      pageSize > 0 ? Math.ceil(total / pageSize) : 1,
+    ),
+  );
+
+  return {
+    items,
+    page: Number.isFinite(pageIndex) ? pageIndex : 0,
+    size: Number.isFinite(pageSize) ? pageSize : items.length,
+    total: Number.isFinite(total) ? total : items.length,
+    totalPages: Number.isFinite(totalPages) ? totalPages : 1,
+  };
+}
+
 export async function fetchAllLmsUsers(adminToken) {
   if (!env.lmsUsersListUrl) {
     throw new HttpError(
@@ -213,4 +265,33 @@ export async function fetchAllLmsUsers(adminToken) {
     deduped.set(user.id, user);
   }
   return [...deduped.values()];
+}
+
+export async function searchLmsUsers(
+  adminToken,
+  { search, page = 0, size = 20 },
+) {
+  if (!env.lmsStudentsSearchUrl) {
+    throw new HttpError(
+      500,
+      "LMS_STUDENTS_SEARCH_URL or LMS_USERS_LIST_URL is required",
+      "LMS_STUDENTS_SEARCH_URL_MISSING",
+    );
+  }
+
+  const url = withQueryParams(env.lmsStudentsSearchUrl, {
+    search: String(search || "").trim() || undefined,
+    page,
+    size,
+  });
+
+  const body = await fetchJson(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${adminToken}`,
+      Accept: "application/json",
+    },
+  });
+
+  return normalizeUsersPage(body);
 }

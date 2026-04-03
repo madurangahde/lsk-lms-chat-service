@@ -152,6 +152,14 @@ POST /api/chat/me/read
 
 ### Admin APIs
 
+#### Search students from LMS by name/email
+
+```http
+GET /api/chat/admin/students?page=1&limit=20&search=eshan
+```
+
+Response includes LMS users and `conversationId` when a thread already exists.
+
 #### List all conversations
 
 ```http
@@ -189,6 +197,19 @@ Content-Type: application/json
 
 {
   "text": "System maintenance tonight from 10 PM to 10:30 PM."
+}
+```
+
+#### Start (or open) a conversation for one LMS student
+
+```http
+POST /api/chat/admin/conversations/start
+Content-Type: application/json
+
+{
+  "id": "student-123",
+  "name": "Jane Doe",
+  "email": "jane@example.com"
 }
 ```
 

@@ -16,6 +16,8 @@ export const env = {
   socketPath: process.env.SOCKET_PATH || "/socket.io",
   mongoUri: process.env.MONGODB_URI,
   lmsUsersListUrl: process.env.LMS_USERS_LIST_URL,
+  lmsStudentsSearchUrl:
+    process.env.LMS_STUDENTS_SEARCH_URL || process.env.LMS_USERS_LIST_URL,
   lmsTimeoutMs: Number(process.env.LMS_TIMEOUT_MS || 5000),
   adminRoleNames: toList(process.env.ADMIN_ROLE_NAMES, "ADMIN,SUPER_ADMIN"),
   userRoleNames: toList(process.env.USER_ROLE_NAMES, "USER,STUDENT"),

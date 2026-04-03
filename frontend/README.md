@@ -23,6 +23,7 @@ React frontend for the LMS chat backend you asked for.
 
 - Admin sees all user conversations separately
 - Admin can search conversations
+- Admin can search LMS students by name and start/open a 1:1 chat
 - Admin can filter unread conversations
 - Admin can open a conversation and reply in real time
 - Admin can send broadcast messages to all users

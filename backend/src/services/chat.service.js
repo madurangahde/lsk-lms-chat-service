@@ -3,7 +3,7 @@ import { Conversation } from "../models/Conversation.js";
 import { Message } from "../models/Message.js";
 import { env } from "../config/env.js";
 import { HttpError } from "../utils/httpError.js";
-import { fetchAllLmsUsers } from "./lmsAuth.service.js";
+import { fetchAllLmsUsers, searchLmsUsers } from "./lmsAuth.service.js";
 import { getSocketServer } from "../config/socketStore.js";
 
 function toMessageDto(doc) {
@@ -56,6 +56,27 @@ function sanitizeText(text) {
     );
   }
   return value;
+}
+
+function normalizeConversationTarget(payload) {
+  const id = String(
+    payload?.id || payload?.userId || payload?.username || payload?.email || "",
+  ).trim();
+  const email = String(payload?.email || "").trim() || null;
+  const name = String(payload?.name || payload?.userName || "").trim();
+
+  if (!id) {
+    throw new HttpError(400, "Target user id is required", "USER_ID_REQUIRED");
+  }
+  if (!name) {
+    throw new HttpError(
+      400,
+      "Target user name is required",
+      "USER_NAME_REQUIRED",
+    );
+  }
+
+  return { id, email, name };
 }
 
 function emitConversationToAdmins(conversation) {
@@ -293,6 +314,44 @@ export async function listAdminConversations({
     total,
     totalPages: Math.ceil(total / limit) || 1,
   };
+}
+
+export async function searchAdminStudents(token, { search, page, limit }) {
+  const result = await searchLmsUsers(token, {
+    search,
+    page: Math.max(page - 1, 0),
+    size: limit,
+  });
+
+  const ids = result.items.map((item) => item.id);
+  const existingConversations = ids.length
+    ? await Conversation.find({ userId: { $in: ids } })
+        .select("_id userId")
+        .lean()
+    : [];
+  const byUserId = new Map(
+    existingConversations.map((row) => [row.userId, String(row._id)]),
+  );
+
+  return {
+    items: result.items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      email: item.email,
+      role: item.role,
+      conversationId: byUserId.get(item.id) || null,
+    })),
+    page: result.page + 1,
+    limit: result.size,
+    total: result.total,
+    totalPages: result.totalPages,
+  };
+}
+
+export async function startAdminConversation(payload) {
+  const target = normalizeConversationTarget(payload);
+  const conversation = await ensureConversationForUser(target);
+  return toConversationDto(conversation);
 }
 
 export async function broadcastAdminMessage(authUser, token, payload) {

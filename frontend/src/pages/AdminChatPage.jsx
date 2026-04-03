@@ -30,6 +30,8 @@ export default function AdminChatPage() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const [studentMatches, setStudentMatches] = useState([]);
+  const [searchingStudents, setSearchingStudents] = useState(false);
   const [error, setError] = useState("");
   const [socketState, setSocketState] = useState("connecting");
   const selectedConversationRef = useRef(null);
@@ -71,6 +73,24 @@ export default function AdminChatPage() {
       await http.post(`/admin/conversations/${conversationId}/read`);
     } finally {
       setLoadingMessages(false);
+    }
+  };
+
+  const loadStudentMatches = async (searchValue = search) => {
+    const trimmed = String(searchValue || "").trim();
+    if (!trimmed) {
+      setStudentMatches([]);
+      return;
+    }
+
+    setSearchingStudents(true);
+    try {
+      const response = await http.get("/admin/students", {
+        params: { page: 1, limit: 20, search: trimmed },
+      });
+      setStudentMatches(response.data.items || []);
+    } finally {
+      setSearchingStudents(false);
     }
   };
 
@@ -204,7 +224,10 @@ export default function AdminChatPage() {
   const handleSearchSubmit = async (event) => {
     event.preventDefault();
     try {
-      await loadConversations(search, onlyUnread);
+      await Promise.all([
+        loadConversations(search, onlyUnread),
+        loadStudentMatches(search),
+      ]);
     } catch (err) {
       setError(resolveErrorMessage(err, "Failed to search conversations"));
     }
@@ -287,6 +310,30 @@ export default function AdminChatPage() {
     }
   };
 
+  const handleStartConversation = async (student) => {
+    setError("");
+    try {
+      const response = await http.post("/admin/conversations/start", {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+      });
+
+      const conversation = response.data;
+      setConversations((prev) => upsertConversation(prev, conversation));
+      setSelectedConversation(conversation);
+      setStudentMatches((prev) =>
+        prev.map((item) =>
+          item.id === student.id
+            ? { ...item, conversationId: conversation.id }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setError(resolveErrorMessage(err, "Failed to start conversation"));
+    }
+  };
+
   if (loading) {
     return <LoadingScreen label="Loading admin chat console..." />;
   }
@@ -328,6 +375,38 @@ export default function AdminChatPage() {
             onSelect={setSelectedConversation}
             isAdmin
           />
+          {search.trim() && (
+            <div className="student-match-box">
+              <div className="student-match-box__title">Students from LMS</div>
+              {searchingStudents ? (
+                <div className="panel-empty">Searching students...</div>
+              ) : studentMatches.length ? (
+                <div className="student-match-list">
+                  {studentMatches.map((student) => (
+                    <div key={student.id} className="student-match-item">
+                      <div>
+                        <div className="student-match-item__name">
+                          {student.name}
+                        </div>
+                        <div className="muted small">
+                          {student.email || student.id}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        type="button"
+                        onClick={() => handleStartConversation(student)}
+                      >
+                        {student.conversationId ? "Open chat" : "Start chat"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="panel-empty">No LMS student matches.</div>
+              )}
+            </div>
+          )}
         </div>
       }
       content={
