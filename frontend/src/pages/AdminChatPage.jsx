@@ -28,6 +28,7 @@ export default function AdminChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [showBroadcast, setShowBroadcast] = useState(false);
   const [search, setSearch] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
   const [studentMatches, setStudentMatches] = useState([]);
@@ -369,22 +370,25 @@ export default function AdminChatPage() {
             />
             <span>Only unread</span>
           </label>
-          <ConversationList
-            items={conversations}
-            selectedId={selectedConversation?.id}
-            onSelect={setSelectedConversation}
-            isAdmin
-          />
+          <div className="sidebar-section sidebar-section--grow">
+            <div className="sidebar-section__title">Conversations</div>
+            <ConversationList
+              items={conversations}
+              selectedId={selectedConversation?.id}
+              onSelect={setSelectedConversation}
+              isAdmin
+            />
+          </div>
           {search.trim() && (
-            <div className="student-match-box">
-              <div className="student-match-box__title">Students from LMS</div>
+            <div className="sidebar-section student-match-box">
+              <div className="sidebar-section__title">Students from LMS</div>
               {searchingStudents ? (
                 <div className="panel-empty">Searching students...</div>
               ) : studentMatches.length ? (
                 <div className="student-match-list">
                   {studentMatches.map((student) => (
                     <div key={student.id} className="student-match-item">
-                      <div>
+                      <div className="student-match-item__meta">
                         <div className="student-match-item__name">
                           {student.name}
                         </div>
@@ -393,7 +397,7 @@ export default function AdminChatPage() {
                         </div>
                       </div>
                       <button
-                        className="btn btn-secondary"
+                        className="btn btn-secondary student-match-item__action"
                         type="button"
                         onClick={() => handleStartConversation(student)}
                       >
@@ -411,7 +415,27 @@ export default function AdminChatPage() {
       }
       content={
         <div className="chat-panel chat-panel--admin">
-          <BroadcastBox onBroadcast={handleBroadcast} sending={broadcasting} />
+          <div className="admin-tools-row">
+            <div>
+              <div className="panel-title">Direct Messages</div>
+              <div className="muted small">
+                Search students on the left and open 1:1 conversations.
+              </div>
+            </div>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setShowBroadcast((prev) => !prev)}
+            >
+              {showBroadcast ? "Hide broadcast" : "Broadcast message"}
+            </button>
+          </div>
+          {showBroadcast && (
+            <BroadcastBox
+              onBroadcast={handleBroadcast}
+              sending={broadcasting}
+            />
+          )}
           {error && (
             <div
               className={

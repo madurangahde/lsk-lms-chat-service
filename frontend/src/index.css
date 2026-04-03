@@ -344,7 +344,8 @@ select:focus {
 .sidebar-stack,
 .chat-panel {
   height: calc(100vh - 118px);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 
@@ -354,27 +355,35 @@ select:focus {
   border-radius: var(--radius-md);
   padding: 16px;
   box-shadow: var(--shadow-sm);
-  grid-template-rows: auto auto 1fr auto;
   animation: riseIn 0.28s ease;
 }
 
-.student-match-box {
+.sidebar-section {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.8);
   padding: 10px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  max-height: 220px;
-  overflow: auto;
+  min-height: 0;
 }
 
-.student-match-box__title {
+.sidebar-section--grow {
+  flex: 1;
+}
+
+.sidebar-section__title {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--primary-strong);
+}
+
+.student-match-box {
+  max-height: 260px;
+  overflow: auto;
 }
 
 .student-match-list {
@@ -393,8 +402,16 @@ select:focus {
   gap: 10px;
 }
 
+.student-match-item__meta {
+  min-width: 0;
+}
+
 .student-match-item__name {
   font-weight: 700;
+}
+
+.student-match-item__action {
+  min-width: 110px;
 }
 
 .search-form {
@@ -420,6 +437,7 @@ select:focus {
   display: grid;
   gap: 10px;
   padding-right: 2px;
+  min-height: 0;
 }
 
 .conversation-item {
@@ -478,12 +496,22 @@ select:focus {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: 16px;
-  grid-template-rows: auto auto 1fr auto;
   animation: riseIn 0.28s ease;
 }
 
 .chat-panel--admin {
-  grid-template-rows: auto auto auto 1fr auto;
+  min-height: 0;
+}
+
+.admin-tools-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 12px;
 }
 
 .broadcast-box,
@@ -512,6 +540,7 @@ select:focus {
 
 .message-list {
   min-height: 0;
+  flex: 1;
   overflow: auto;
   background:
     radial-gradient(
@@ -648,6 +677,7 @@ select:focus {
     min-height: 360px;
   }
 
+  .admin-tools-row,
   .broadcast-box,
   .panel-header,
   .topbar {
@@ -657,6 +687,10 @@ select:focus {
 
   .broadcast-form {
     min-width: 0;
+  }
+
+  .student-match-box {
+    max-height: 300px;
   }
 }
 
